@@ -21,11 +21,21 @@ build: clean
 	(cd cmd/flareapi && go get && go build -o ../../bin/flareapi)
 	(cd cmd/flared && go get && go build -o ../../bin/flared)
 
-test:
+test: build
 	go get github.com/stretchr/testify
 	go test -v ./pkg/...
 
-unit_tests:
+godeps:
+	go get github.com/Sirupsen/logrus
+	go get github.com/coreos/etcd
+	go get github.com/coreos/go-etcd/etcd || true
+	go get github.com/docker/docker || true
+	go get github.com/fsouza/go-dockerclient
+	go get github.com/gyuho/goraph/graph
+	go get gopkg.in/yaml.v2
+	go get github.com/hashicorp/consul/api
+
+unit_tests: godeps
 	tests/setup.sh
 	make tests
 

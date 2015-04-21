@@ -21,6 +21,7 @@ import (
 
 func TestIsValid(t *testing.T) {
 	config := DefaultConfig()
+	config.DockerInterface = "lo"
 	assert.Nil(t, config.IsValid())
 
 	config.FlarePrefix = ""
