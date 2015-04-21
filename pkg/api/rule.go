@@ -140,6 +140,11 @@ func (rule *FlareRule) Addr(address string) *FlareRule {
 	return rule
 }
 
+func (rule *FlareRule) SetID(id string) *FlareRule {
+	rule.ID = id
+	return rule
+}
+
 // Set the description on the rule
 func (rule *FlareRule) Comment(description string) *FlareRule {
 	rule.Description = description

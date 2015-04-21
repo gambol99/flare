@@ -23,6 +23,7 @@ import (
 	"github.com/gambol99/flare/pkg/utils"
 
 	log "github.com/Sirupsen/logrus"
+	"path/filepath"
 )
 
 // the implementation of the rule store
@@ -65,6 +66,15 @@ func New(cfg *config.FlareConfiguration) (RulesService, error) {
 		return nil, err
 	}
 
+	// step: ensure the namespace exists
+	if err := service.backend.Mkdir(service.getNamespace(NAMESPACE_GROUPS)); err != nil {
+		return nil, fmt.Errorf("failed to create the namespace for groups, error: %s", err)
+	}
+	// ensure the namespace for the nodes
+	if err := service.backend.Mkdir(service.getNamespace(NAMESPACE_FLARE)); err != nil {
+		return nil, fmt.Errorf("failed to create the namespace for nodes, error: %s", err)
+	}
+
 	// step: add our self as listener for events from the store
 	service.backend.AddListener(service.events)
 
@@ -84,6 +94,19 @@ func (r *RulesStore) Add(group *api.FlareRuleGroup) error {
 		return err
 	}
 
+	// step: we need to check if the group references any others
+	group_list, err := r.ListGroups()
+	if err != nil {
+		log.Errorf("Failed to get a list of groups, error: %s", err)
+		return err
+	}
+	references := group.References()
+	for _, reference := range references {
+		if !utils.IsValidArgument(reference, group_list) {
+			return fmt.Errorf("a rule in the group references group: %s which does not exists", reference)
+		}
+	}
+
 	// step: we marshall the content
 	content, err := r.encode(group)
 	if err != nil {
@@ -98,6 +121,12 @@ func (r *RulesStore) Add(group *api.FlareRuleGroup) error {
 		log.Errorf("unable to insert the group: %s into the backend, error: %s", group.ID, err)
 		return err
 	}
+
+	// step: add to the cache
+	r.Lock()
+	defer r.Unlock()
+	r.groups[group.ID] = group
+	r.dependencies.Add(group.ID)
 
 	return nil
 }
@@ -140,10 +169,6 @@ func (r *RulesStore) Flush() error {
 	log.Warnf("Deleting all the rules from backend and cache")
 	r.Lock()
 	defer r.Unlock()
-
-	// step
-
-
 
 
 	return nil
@@ -189,7 +214,7 @@ func (r *RulesStore) ListGroups() ([]string, error) {
 // Check to see if the group specified exists
 //	ID:		the name of the group you are looking for
 func (r *RulesStore) IsGroup(ID string) (bool, error) {
-	log.Debugf("Looing for group: %s in the list of groups", ID)
+	log.Debugf("Looking for group: %s in the list of groups", ID)
 	// step: make sure we have a group id
 	if ID == "" {
 		return false, fmt.Errorf("you have not supplied a group id to check")
@@ -201,7 +226,7 @@ func (r *RulesStore) IsGroup(ID string) (bool, error) {
 	}
 	// step: iterate the group names a look for a match
 	for _, name := range groups {
-		if name == ID {
+		if filepath.Base(name) == ID {
 			return true, nil
 		}
 	}
@@ -231,7 +256,6 @@ func (r *RulesStore) Sync() error {
 		// step: grab the group from the backend
 		group, err := r.Get(name)
 		if err != nil {
-			// @CHOICE: we don't load unless we can load all the groups
 			return fmt.Errorf("failed to load the group: %s, %s", name, err)
 		}
 
@@ -262,8 +286,10 @@ func (r *RulesStore) Sync() error {
 	}
 
 	// step: we need to lock and swap out the cache and dependencies
-
-
+	r.Lock()
+	defer r.Unlock()
+	r.groups = cache
+	r.dependencies = depends
 	return nil
 }
 

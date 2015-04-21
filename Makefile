@@ -21,7 +21,7 @@ build: clean
 	(cd cmd/flareapi && go get && go build -o ../../bin/flareapi)
 	(cd cmd/flared && go get && go build -o ../../bin/flared)
 
-test: build
+test:
 	go get github.com/stretchr/testify
 	go test -v ./pkg/...
 

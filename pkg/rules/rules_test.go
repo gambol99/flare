@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	rulesLock  sync.Once
-	rules RulesService
+	rulesLock sync.Once
+	rules     RulesService
 )
 
 func createTestRuleService(t *testing.T) RulesService {
@@ -48,12 +48,41 @@ func createTestRuleService(t *testing.T) RulesService {
 	return rules
 }
 
+func createCleanRulesService(t *testing.T) RulesService {
+	agent := createTestRuleService(t)
+	flushTestBackend(t)
+	return agent
+}
+
+func flushTestBackend(t *testing.T) {
+	agent := createTestRuleService(t).(*RulesStore)
+	agent.backend.DeleteAll("/flare/groups")
+}
+
+func checkAddTestGroup(t *testing.T, agent RulesService, group *api.FlareRuleGroup) {
+	if !assert.NoError(t, agent.Add(group)) {
+		t.FailNow()
+	}
+	if !assert.NotNil(t, group) {
+		t.FailNow()
+	}
+}
+
+func checkIsGroup(t *testing.T, agent RulesService, id string) bool {
+	found, err := agent.IsGroup(id)
+	if !assert.NoError(t, err) {
+		t.Logf("Failed to isGroup(%s), error: %s", id, err)
+		t.FailNow()
+	}
+	return found
+}
+
 func TestNewRuleStore(t *testing.T) {
 	rules := createTestRuleService(t)
 	assert.NotNil(t, rules)
 }
 
-func TestAddGroup(t *testing.T) {
+func TestAdd(t *testing.T) {
 	group := api.NewFlareGroup()
 	group.ID = "security_group_authentication"
 	group.Rule().Address().Addr("10.0.100.32").TCP().Port(389).Accept().Comment("allow ldap authentication")
@@ -70,18 +99,74 @@ func TestAddGroup(t *testing.T) {
 }
 
 func TestIsGroup(t *testing.T) {
-	r := createTestRuleService(t)
+	agent := createTestRuleService(t)
 	group := api.NewFlareGroup()
 	group.ID = "security_group_authentication"
 	group.Rule().Address().Addr("10.0.100.32").TCP().Port(389).Accept().Comment("allow ldap authentication")
+	assert.Nil(t, agent.Add(group))
+	assert.True(t, checkIsGroup(t, agent, "security_group_authentication"))
+	assert.False(t, checkIsGroup(t, agent, "security_group_authentication_fake"))
+}
 
-	assert.Nil(t, r.Add(group))
-	//assert.True(t, r.IsGroup("security_group_authentication"))
-	//assert.False(t, r.IsGroup("security_group_authentication_fake"))
+func TestGet(t *testing.T) {
+	agent := createCleanRulesService(t)
+	groupA := api.NewFlareGroup()
+	groupA.SetID("test_group1").Rule().Address().Addr("10.0.100.32").TCP().Port(80).Accept().Comment("service")
+	groupB := api.NewFlareGroup()
+	groupB.SetID("test_group2").Rule().Address().Addr("10.0.100.32").TCP().Port(443).Accept().Comment("service")
+	checkAddTestGroup(t, agent, groupA)
+	checkAddTestGroup(t, agent, groupB)
+
+	group, err := agent.Get(groupA.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, group)
+	assert.Equal(t, "test_group1", group.ID)
+
+	group, err = agent.Get(groupB.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, group)
+	assert.Equal(t, "test_group2", group.ID)
+}
+
+//func TestDelete(t *testing.T) {
+//	agent := createCleanRulesService(t)
+//	group := api.NewFlareGroup()
+//	group.SetID("test_group1").Rule().Address().Addr("10.0.100.32").TCP().Port(80).Accept().Comment("service")
+//	checkAddTestGroup(t, agent, group)
+//	if !checkIsGroup(t, agent, group.ID) {
+//		t.FailNow()
+//	}
+//	assert.NoError(t, agent.Delete(group.ID))
+//	if checkIsGroup(t, agent, group.ID) {
+//		t.FailNow()
+//	}
+//}
+
+func TestDeleteGroupMembership(t *testing.T) {
+	agent := createCleanRulesService(t)
+
+	groupA := api.NewFlareGroup()
+	groupA.SetID("test_group1").Rule().Address().Addr("10.0.100.32").TCP().Port(80).Accept().Comment("service")
+	groupB := api.NewFlareGroup()
+	groupB.SetID("test_group2").Rule().Address().Addr("10.0.100.32").TCP().Port(443).Accept().Comment("service")
+	groupC := api.NewFlareGroup()
+	groupC.SetID("test_group3").Rule().Group().SetID("test_group_fake")
+
+	checkAddTestGroup(t, agent, groupA)
+	checkAddTestGroup(t, agent, groupB)
+	checkAddTestGroup(t, agent, groupB)
+
 }
 
 func TestGroups(t *testing.T) {
-	agent := createTestRuleService(t)
+	agent := createCleanRulesService(t)
+	groupA := api.NewFlareGroup()
+	groupA.SetID("test_group1").Rule().Address().Addr("10.0.100.32").TCP().Port(80).Accept().Comment("service")
+	groupB := api.NewFlareGroup()
+	groupB.SetID("test_group2").Rule().Address().Addr("10.0.100.32").TCP().Port(443).Accept().Comment("service")
+	checkAddTestGroup(t, agent, groupA)
+	checkAddTestGroup(t, agent, groupB)
+
 	groups, err := agent.ListGroups()
 	assert.Nil(t, err)
 	if !assert.NotNil(t, groups) {
@@ -90,13 +175,5 @@ func TestGroups(t *testing.T) {
 	if !assert.NotEmpty(t, groups) {
 		t.FailNow()
 	}
-}
-
-func TestSync(t *testing.T) {
-	_ = createTestRuleService(t)
-	// delete everything first
-
-
-
-
+	assert.Equal(t, 2, len(groups))
 }

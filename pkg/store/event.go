@@ -36,6 +36,18 @@ func (event StoreEvent) ActionType() string {
 	}
 }
 
+// Check if it's a directory
+func (event StoreEvent) IsDirectory() bool {
+	return event.Directory
+}
+
+func (event StoreEvent) IsFile() bool {
+	if event.Directory {
+		return false
+	}
+	return true
+}
+
 // Check if the event is a changed event
 func (event StoreEvent) IsChanged() bool {
 	if event.Action == CHANGED {

@@ -51,3 +51,14 @@ func TestGroupCompare(t *testing.T) {
 	groupB.Rule().Address().Addr("10.0.100.32").TCP().Port(389).Accept().Comment("allow ldap authentication")
 	assert.False(t, groupA.Compare(groupB))
 }
+
+func TestReferences(t *testing.T) {
+	group := NewFlareGroup()
+	group.ID = "security_group_references"
+	group.Active = true
+	group.Description = "my description"
+	group.Rule().Group().SetID("security_group_one")
+	list := group.References()
+	assert.NotEmpty(t, list)
+	assert.Equal(t, 1, len(list))
+}

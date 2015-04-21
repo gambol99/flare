@@ -15,8 +15,12 @@ package store
 
 // the interface to a store
 type Store interface {
+	// ensure a namespace exists
+	Mkdir(string) error
 	// delete the keys in the namespace
 	Delete(string, bool) error
+	// delete child of the directory
+	DeleteAll(string) error
 	// list all the keys under a namespace
 	List(string, bool) ([]string, error)
 	// retrieve a key from the store
@@ -50,6 +54,8 @@ type StoreEvent struct {
 	Value string
 	// the type of event, added, deleted, changed
 	Action int
+	// a directory?
+	Directory bool
 }
 
 // a channel which the events are received upon

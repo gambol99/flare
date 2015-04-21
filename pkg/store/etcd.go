@@ -151,6 +151,26 @@ func (r *EtcdStoreAgent) watchEvents() {
 	}()
 }
 
+// Make a directory structure
+//	path		the directory you want to create
+func (r *EtcdStoreAgent) Mkdir(path string) error {
+	log.Debugf("Creating the directory: %s", path)
+	response, err := r.client.CreateDir(path, 0)
+	if err != nil {
+		if strings.Contains(err.Error(), "Key already exists") {
+			if response, err = r.client.Get(path, false, false); err != nil {
+				return fmt.Errorf("unable to retrieve the path: %s, error: %s", path, err)
+			} else if !response.Node.Dir {
+				return fmt.Errorf("a non directory entry already exists for: %s", path)
+			}
+			return nil
+		}
+		log.Errorf("Failed to create the directory: %s, error: %s", path, err)
+		return err
+	}
+	return nil
+}
+
 // List all the keys under a directory
 // 	path:		the key for the directory
 //	recursive:	do you want the listing to include subdirectories
@@ -220,6 +240,36 @@ func (r *EtcdStoreAgent) Delete(path string, recursive bool) error {
 	return err
 }
 
+// Delete all the child of a directory
+// 	path:		the path of directory
+func (r *EtcdStoreAgent) DeleteAll(path string) error {
+	log.Debugf("Deleting all the entries under path: %s", path)
+	if found, err := r.Exists(path); err != nil {
+		return err
+	} else if !found {
+		fmt.Errorf("the path: %s does not exist", path)
+	}
+
+	is_directory, err := r.isDirectory(path)
+	if err != nil {
+		return err
+	} else if !is_directory {
+		return fmt.Errorf("path: %s is not a directory", path)
+	}
+
+	listings, err := r.List(path, false)
+	if err != nil {
+		return err
+	}
+	// delete the files
+	for _, file := range listings {
+		if _, err := r.client.Delete(file, true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Shutdown the resources
 func (r *EtcdStoreAgent) Close() error {
 	log.Infof("Shutting down the Etcd Agent")
@@ -231,6 +281,12 @@ func (r *EtcdStoreAgent) Close() error {
 //  id:     the id / key which you are checking for
 func (r *EtcdStoreAgent) Exists(id string) (bool, error) {
 	log.Debugf("Checking if key: %s exists in etcd store", id)
+	if _, err := r.client.Get(id, false, false); err != nil {
+		if strings.Contains(err.Error(), "Key not found") {
+			return false, nil
+		}
+		return false, err
+	}
 	return true, nil
 }
 
@@ -281,6 +337,14 @@ func (r *EtcdStoreAgent) recursiveList(path string, paths *[]string) ([]string, 
 	return *paths, nil
 }
 
+func (r *EtcdStoreAgent) isDirectory(path string) (bool, error) {
+	response, err := r.client.Get(path, false, false)
+	if err != nil {
+		return false, err
+	}
+	return response.Node.Dir, nil
+}
+
 func (r *EtcdStoreAgent) isValidKey(key string) bool {
 	if strings.HasPrefix(key, "/") {
 		return true
@@ -295,12 +359,6 @@ func (r *EtcdStoreAgent) processNodeChange(response *etcd.Response) {
 		return
 	}
 
-	// step: we only listen out to change on keys, not directories
-	if response.Node.Dir {
-		log.Debugf("Skipping the event, as the change was on a directory")
-		return
-	}
-
 	// step: iterate the list and find out if our key is being watched
 	path := response.Node.Key
 	log.Debugf("Checking if key: %s is being watched", path)
@@ -310,6 +368,7 @@ func (r *EtcdStoreAgent) processNodeChange(response *etcd.Response) {
 			// step: we create an event and send upstream
 			event := new(StoreEvent)
 			event.ID = response.Node.Key
+			event.Directory = response.Node.Dir
 			event.Value = response.Node.Value
 			switch response.Action {
 			case "set":

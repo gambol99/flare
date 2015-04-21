@@ -48,6 +48,17 @@ func NewFlareGroup() *FlareRuleGroup {
 	}
 }
 
+// Provide us with a list of references to other groups if any
+func (group *FlareRuleGroup) References() []string {
+	list := make([]string, 0)
+	for _, rule := range group.Rules {
+		if rule.RuleType == TYPE_GROUP {
+			list = append(list, rule.ID)
+		}
+	}
+	return list
+}
+
 // Compare one group to another and return true if the same
 func (group *FlareRuleGroup) Compare(src *FlareRuleGroup) bool {
 	// check the id
@@ -69,6 +80,12 @@ func (group *FlareRuleGroup) Compare(src *FlareRuleGroup) bool {
 	// check each of the rules
 
 	return true
+}
+
+// Set the Id of the group at return our self
+func (group *FlareRuleGroup) SetID(id string) *FlareRuleGroup {
+	group.ID = id
+	return group
 }
 
 // Add a rule to the group and return it

@@ -118,6 +118,24 @@ func TestListRecursive(t *testing.T) {
 	assert.Equal(t, 7, len(list))
 }
 
+func TestMkdir(t *testing.T) {
+	agent := createTestEctdAgent(t)
+	agent.Delete("/flare/unit_tests", true)
+	assert.NoError(t, agent.Mkdir("/flare/unit_tests"))
+	assert.NoError(t, agent.Mkdir("/flare/unit_tests"))
+}
+
+func TestDeleteAll(t *testing.T) {
+	agent := createTestEctdAgent(t)
+	assert.NoError(t, agent.Set("/flare/delete_all/1", "1"))
+	assert.NoError(t, agent.Set("/flare/delete_all/2", "1"))
+	assert.NoError(t, agent.Set("/flare/delete_all/3", "1"))
+	assert.NoError(t, agent.DeleteAll("/flare/delete_all"))
+	found, err := agent.Exists("/flare/delete_all")
+	assert.NoError(t, err)
+	assert.True(t, found)
+}
+
 func TestAddListener(t *testing.T) {
 	agent := createTestEctdAgent(t)
 	ch := make(StoreEventChannel, 4)
@@ -131,6 +149,5 @@ func TestAddListener(t *testing.T) {
 		t.FailNow()
 	case event := <-ch:
 		assert.NotNil(t, event)
-		assert.Equal(t, event.Value, value)
 	}
 }
