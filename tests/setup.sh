@@ -14,7 +14,7 @@ failed() {
 
 check() {
   if [ -n "$1" ]; then
-    echo -n "check: $2 "
+    echo -n "check: $1 "
     eval "$1 >/dev/null"
     if [ $? -ne 0 ]; then
       echo "[failed]"
@@ -25,10 +25,10 @@ check() {
 }
 perform_setup() {
   annonce "downloading the etcd service for tests"
-  check "curl -skL https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz > /tmp/etcd-v2.0.0-linux-amd64.tar.gz "
-  check "tar zxf /tmp/etcd-v2.0.0-linux-amd64.tar.gz"
+  check "curl -Lk https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o /tmp/etcd.tar.gz"
+  check "tar zvxf /tmp/etcd.tar.gz -C /tmp"
   annonce "starting the etcd service"
-  check "nohup /tmp/etcd-v2.0.0-linux-amd64/etcd > etcd.log 2>&1 &"
+  check "/tmp/etcd*amd64/etcd > /dev/null 2>&1 &"
   check "sleep 3"
 }
 
