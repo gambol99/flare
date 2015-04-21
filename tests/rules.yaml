@@ -1,0 +1,87 @@
+#
+#   Author: Rohith
+#   Date: 2015-04-18 21:36:30 +0100 (Sat, 18 Apr 2015)
+#
+#  vim:ts=2:sw=2:et
+#
+flare:
+  - id: security_group_authentication
+    desctription: authention group
+    active: true
+    last_updated: ""
+    rules:
+      - type: address
+        destination: 10.0.100.32
+        port: 339
+        protocol: all
+        action: accept
+      - type: address
+        destination: 10.0.100.33
+        port: 639
+        protocol: all
+        action: accept
+
+  - id: security_group_block_internal
+    description: block all internal traffic
+    active: true
+    last_updated: ""
+    rules:
+      - type: address
+        description: block all internel traffic
+        destination: 10.0.0.0/8
+        protocol: all
+        port: 0
+        action: drop
+      - type: address
+        description: block all internel traffic
+        destination: 192.168.0.0/24
+        protocol: all
+        port: 0
+        action: drop
+  - id: security_group_docker_traffic
+    description: block all docker traffic
+    active: true
+    last_updated: ""
+    rules:
+      - type: address
+        description: allow docker vip traffic
+        destination: 172.17.42.1
+        protocol: all
+        port: 0
+        action: accept
+      - type: address
+        destination: 172.16.0.0/16
+        protocol: all
+        port: 0
+        action: drop
+  - id: internet_traffic
+    description: internet traffic rules
+    active: true
+    last_updated: ""
+    rules:
+      - type: address
+        description: allow http traffic
+        destination: 0.0.0.0/0
+        protocol: tcp
+        port:
+          - 80
+          - 443
+        action: accept
+      - type: address
+        description: allow dns
+        destination: 0.0.0.0/0
+        protocol: udp
+        port: 53
+  - id: default
+    description: the default security policy
+    active: true
+    last_updated: ""
+    rules:
+      - type: group
+        id: security_group_authentication
+      - type: group
+        id: security_group_docker_traffic
+      - type: group
+        id: security_group_block_internal
+      - type: group
+        name: internet_traffic

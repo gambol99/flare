@@ -1,0 +1,12 @@
+#
+#   Author: Rohith
+#   Date: 2015-04-21 11:22:05 +0100 (Tue, 21 Apr 2015)
+#
+#  vim:ts=2:sw=2:et
+#
+language: go
+go:
+  - 1.4
+  - tip
+install:
+  - make unit_tests
