@@ -23,6 +23,7 @@ check() {
     echo "[passed]"
   fi
 }
+
 perform_setup() {
   annonce "downloading the etcd service for tests"
   check "curl -Lk https://github.com/coreos/etcd/releases/download/v2.0.0/etcd-v2.0.0-linux-amd64.tar.gz -o /tmp/etcd.tar.gz"

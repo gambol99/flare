@@ -37,7 +37,7 @@ godeps:
 
 unit_tests: godeps
 	tests/setup.sh
-	make tests
+	make test
 
 changelog: release
 	git log $(shell git tag | tail -n1)..HEAD --no-merges --format=%B > changelog
